@@ -384,7 +384,7 @@ function Answer({
             </div>
           )}
           <p className="text-sm whitespace-pre-wrap">
-            {reply}
+            <ReplyText text={reply} />
             {working && (
               <span className="bg-primary ml-0.5 inline-block h-4 w-0.5 animate-pulse align-middle" />
             )}
@@ -422,6 +422,30 @@ function Station({
       {children}
     </section>
   );
+}
+
+/**
+ * Copper's reply, with each source citation, like
+ * [Copper Home User Guide, p. 9](/docs/copper-home-user-guide.pdf#page=9),
+ * drawn as a link that opens the PDF at that page. Only links to our own
+ * /docs/ PDFs become links; anything else stays plain text.
+ */
+function ReplyText({ text }: { text: string }) {
+  return text.split(/(\[[^\]]+\]\(\/docs\/[^)\s]+\))/).map((part, i) => {
+    const link = /^\[([^\]]+)\]\((\/docs\/[^)\s]+)\)$/.exec(part);
+    if (!link) return part;
+    return (
+      <a
+        key={i}
+        href={link[2]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary font-medium underline underline-offset-2"
+      >
+        [{link[1]}]
+      </a>
+    );
+  });
 }
 
 /** Thought summaries arrive as markdown: render **bold** and `code`. */

@@ -19,6 +19,8 @@ export type DocHit = {
   text: string;
   /** Opens the PDF at the passage's page. */
   url: string;
+  /** The source line Copper puts after a sentence: a link like [Title, p. 9](url). */
+  citation: string;
   /** How close in meaning, from -1 to 1 (higher is closer). */
   score: number;
 };
@@ -56,16 +58,18 @@ export function toHits(
 ): DocHit[] {
   return nearest.map(({ passage, score }, i) => {
     const doc = DOCUMENTS.find((d) => d.id === passage.documentId);
+    const url = pageUrl(
+      doc?.file ?? `/docs/${passage.documentId}.pdf`,
+      passage.page,
+    );
     return {
       rank: i + 1,
       documentId: passage.documentId,
       title: passage.title,
       page: passage.page,
       text: passage.text.replace(`${passage.title}: `, ""),
-      url: pageUrl(
-        doc?.file ?? `/docs/${passage.documentId}.pdf`,
-        passage.page,
-      ),
+      url,
+      citation: `[${passage.title}, p. ${passage.page}](${url})`,
       score: Math.round(score * 1000) / 1000,
     };
   });

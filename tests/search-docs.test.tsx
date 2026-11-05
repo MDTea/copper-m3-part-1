@@ -162,3 +162,58 @@ describe("the search_docs tool card", () => {
     );
   });
 });
+
+describe("cited answers", () => {
+  it("gives each passage a ready-made citation link to its page", () => {
+    const target = passageStore.passages[100];
+    const [hit] = toHits(nearestPassages(target.embedding, [target], 1));
+    expect(hit.citation).toBe(
+      `[${target.title}, p. ${target.page}](/docs/${target.documentId}.pdf#page=${target.page})`,
+    );
+  });
+
+  it("tells Copper to answer only from search_docs, cite every sentence, and admit when it can't find it", async () => {
+    const { COPPER_INSTRUCTIONS: text } =
+      await import("@/lib/copper/assistant/instructions");
+    expect(text).toContain("search_docs");
+    expect(text).toMatch(/only from the passages/i);
+    expect(text).toMatch(/every sentence/i);
+    expect(text).toMatch(/citation/i);
+    expect(text).toContain("I couldn't find that in our support docs");
+    expect(text).toContain("Copper Crew");
+    expect(text).toMatch(/never guess/i);
+  });
+
+  it("draws citations in Copper's reply as links that open the PDF at that page, and leaves other links as text", async () => {
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "AIza-test-key");
+    const done = createLive<Progress>();
+    done.done({
+      steps: [],
+      status: "done",
+      reply:
+        "Unplug it for 30 seconds. [Copper Home User Guide, p. 9](/docs/copper-home-user-guide.pdf#page=9) See [this](https://example.com/x).",
+    });
+    vi.doMock("@/lib/copper/assistant/ask", () => ({
+      askCopper: vi.fn(async () => ({ progress: done.live })),
+    }));
+    vi.resetModules();
+    const { default: Home } = await import("@/app/page");
+    const page = Home as unknown as () =>
+      React.ReactNode | Promise<React.ReactNode>;
+    render(<>{await page()}</>);
+    fireEvent.click(screen.getByTestId("ask-copper-launcher"));
+    const chat = within(await screen.findByTestId("ask-copper"));
+    fireEvent.change(chat.getByRole("textbox"), { target: { value: "C-47" } });
+    fireEvent.click(chat.getByRole("button", { name: /send/i }));
+
+    const link = await chat.findByRole("link", {
+      name: "[Copper Home User Guide, p. 9]",
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      "/docs/copper-home-user-guide.pdf#page=9",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(chat.queryByRole("link", { name: /this/ })).toBeNull();
+  });
+});
