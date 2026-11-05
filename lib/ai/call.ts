@@ -1,7 +1,12 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, Output, streamText } from "ai";
+import { embedMany, generateText, Output, streamText } from "ai";
 import type { z } from "zod";
-import { defaultModel, MODELS, type ModelId } from "@/lib/ai/models";
+import {
+  defaultModel,
+  EMBEDDING_MODEL,
+  MODELS,
+  type ModelId,
+} from "@/lib/ai/models";
 import { costUsd } from "@/lib/ai/pricing";
 
 // Every model call in the app goes through this file, so each one is logged
@@ -36,7 +41,7 @@ type TextOptions = DistributiveOmit<
 export type AiCallRow = {
   module: number;
   feature: string;
-  model: ModelId;
+  model: ModelId | typeof EMBEDDING_MODEL.id;
   input_tokens: number | null;
   output_tokens: number | null;
   cost_usd: number | null;
@@ -45,15 +50,20 @@ export type AiCallRow = {
   created_at: string;
 };
 
-function languageModel(model: ModelId) {
+function googleProvider() {
   const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
   if (!googleKey) throw new AiNotConfiguredError();
+  return createGoogleGenerativeAI({ apiKey: googleKey });
+}
+
+function languageModel(model: ModelId) {
+  const google = googleProvider();
   const entry = MODELS.find((m) => m.id === model);
   const id =
     entry && "googleId" in entry
       ? entry.googleId
       : model.slice("google/".length);
-  return createGoogleGenerativeAI({ apiKey: googleKey })(id);
+  return google(id);
 }
 
 /** Prints one line per model call, so the cost and time are visible. */
@@ -64,7 +74,7 @@ async function logCall(row: AiCallRow): Promise<void> {
 type Usage = { inputTokens?: number; outputTokens?: number };
 
 /** Builds the ai_calls row for a call that started at `started`. */
-function rowFor(info: CallInfo, model: ModelId, started: number) {
+function rowFor(info: CallInfo, model: AiCallRow["model"], started: number) {
   return (ok: boolean, usage?: Usage): AiCallRow => {
     const input = usage?.inputTokens ?? null;
     const output = usage?.outputTokens ?? null;
@@ -75,7 +85,7 @@ function rowFor(info: CallInfo, model: ModelId, started: number) {
       input_tokens: input,
       output_tokens: output,
       cost_usd:
-        input !== null && output !== null
+        input !== null && output !== null && model !== EMBEDDING_MODEL.id
           ? costUsd(model, input, output)
           : null,
       latency_ms: Math.round(performance.now() - started),
@@ -145,6 +155,62 @@ export function callStream(info: CallInfo, options: StreamOptions) {
     onFinish: ({ totalUsage }) => logCall(row(true, totalUsage)),
     onError: () => logCall(row(false)),
   });
+}
+
+/** Scales a vector to length 1, which Google asks for when it is shortened. */
+function normalize(vector: number[]): number[] {
+  const length = Math.sqrt(vector.reduce((sum, x) => sum + x * x, 0));
+  return length === 0 ? vector : vector.map((x) => x / length);
+}
+
+/**
+ * Turns each text into an embedding: a list of numbers where texts with a
+ * similar meaning get similar lists. Use "document" for passages you will
+ * search through and "query" for the question you search with.
+ * Example: callEmbed({ module: 3, feature: "embed-docs" }, { values, kind: "document" })
+ */
+export async function callEmbed(
+  info: Omit<CallInfo, "model">,
+  options: { values: string[]; kind: "document" | "query" },
+) {
+  const row = rowFor(
+    { ...info, model: undefined },
+    EMBEDDING_MODEL.id,
+    performance.now(),
+  );
+  try {
+    const result = await embedMany({
+      model: googleProvider().embedding(EMBEDDING_MODEL.id),
+      values: options.values,
+      providerOptions: {
+        google: {
+          taskType:
+            options.kind === "document"
+              ? "RETRIEVAL_DOCUMENT"
+              : "RETRIEVAL_QUERY",
+          outputDimensionality: EMBEDDING_MODEL.dimensions,
+        },
+      },
+    });
+    // Google doesn't always report embedding tokens; log null when it doesn't.
+    const reported = result.usage?.tokens;
+    const tokens = Number.isFinite(reported) ? reported : null;
+    await logCall({
+      ...row(true, {}),
+      input_tokens: tokens,
+      cost_usd:
+        tokens === null
+          ? null
+          : (tokens * EMBEDDING_MODEL.pricePerMillionTokens) / 1_000_000,
+    });
+    return {
+      embeddings: result.embeddings.map(normalize),
+      tokens,
+    };
+  } catch (error) {
+    if (!(error instanceof AiNotConfiguredError)) await logCall(row(false));
+    throw error;
+  }
 }
 
 // Asking for some thinking (rather than letting the model decide) is what

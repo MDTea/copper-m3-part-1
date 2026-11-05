@@ -95,4 +95,5 @@ each step. Module 3 teaches it to answer from the customer documents.
 | Tools | `lib/copper/assistant/tools.ts` | `copperTools`: `get_products`, `get_prices`, `calculate_cost`, `check_availability` |
 | Instructions | `lib/copper/assistant/instructions.ts` | `COPPER_INSTRUCTIONS`. Copper says it can't help yet with warranty, setup, troubleshooting or privacy |
 | Data | `lib/copper/inventory.ts`, `lib/copper/documents.ts` | Stock from `lib/copper/data/inventory.json`; `DOCUMENTS`: the four customer documents and their PDF paths under `public/docs/`. The PDFs are added in class |
-| AI calls | `{ module: 2, feature: "ask-copper" }` | One streamed call per question |
+| Document passages | `lib/copper/rag/` (`chunk.ts`, `passages.ts`), `scripts/embed-docs.ts`, `lib/copper/data/document-embeddings.json` | `npm run embed:docs` reads every PDF in `public/docs/`, cuts each page into passages of about 3 sentences (each starting with its document title, with title and page kept alongside), embeds them with `gemini-embedding-001` (768 numbers each) and saves them to one JSON file. `passageStore` loads that file into memory when the app starts. Re-run the script when a PDF changes |
+| AI calls | `{ module: 2, feature: "ask-copper" }`, `{ module: 3, feature: "embed-docs" }` | One streamed call per question; `callEmbed` for embeddings |

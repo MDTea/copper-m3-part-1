@@ -17,6 +17,18 @@ export const MODELS = [
 export type ModelId = (typeof MODELS)[number]["id"];
 
 /**
+ * The model that turns text into embeddings (lists of numbers that capture
+ * meaning), used to search the customer documents. 768 numbers per passage
+ * keeps the saved file small while still matching well.
+ */
+export const EMBEDDING_MODEL = {
+  id: "gemini-embedding-001",
+  dimensions: 768,
+  /** US dollars per million input tokens (Google's list price, 2026-10). */
+  pricePerMillionTokens: 0.15,
+} as const;
+
+/**
  * The model used when a call doesn't name one. 2.5 Flash writes a summary of
  * its thinking for every question, which Ask Copper shows students.
  */
