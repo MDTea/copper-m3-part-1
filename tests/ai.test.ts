@@ -60,9 +60,9 @@ describe("pricing", () => {
   });
 
   it("computes cost from tokens and price per million", () => {
-    // Gemini 2.5 Flash: 1,000 x $0.3/M + 200 x $2.5/M = $0.0008
-    expect(costUsd("google/gemini-2.5-flash", 1000, 200)).toBeCloseTo(
-      0.0008,
+    // Gemini 3.8 Flash: 1,000 x $0.75/M + 200 x $3.75/M = $0.0015
+    expect(costUsd("google/gemini-3.8-flash", 1000, 200)).toBeCloseTo(
+      0.0015,
       9,
     );
   });
@@ -73,7 +73,7 @@ describe("lib/ai/call.ts", () => {
     const rows = captureLog();
     model = replyWith("Hello from Copper");
     const result = await callText(
-      { module: 2, feature: "review-radar", model: "google/gemini-2.5-flash" },
+      { module: 2, feature: "review-radar", model: "google/gemini-3.8-flash" },
       { prompt: "Say hello" },
     );
     expect(result.text).toBe("Hello from Copper");
@@ -82,12 +82,12 @@ describe("lib/ai/call.ts", () => {
     expect(logged[0]).toMatchObject({
       module: 2,
       feature: "review-radar",
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-3.8-flash",
       input_tokens: 1000,
       output_tokens: 200,
       ok: true,
     });
-    expect(logged[0].cost_usd).toBeCloseTo(0.0008, 9);
+    expect(logged[0].cost_usd).toBeCloseTo(0.0015, 9);
     expect(logged[0].latency_ms).toBeGreaterThanOrEqual(0);
     expect(new Date(logged[0].created_at).toString()).not.toBe("Invalid Date");
   });
@@ -109,11 +109,11 @@ describe("lib/ai/call.ts", () => {
     expect(result.usage).toBeDefined();
   });
 
-  it("uses Gemini 2.5 Flash when no model is given", async () => {
+  it("uses Gemini 3.8 Flash when no model is given", async () => {
     const rows = captureLog();
     model = replyWith("ok");
     await callText({ module: 1, feature: "test" }, { prompt: "hi" });
-    expect(rows()[0].model).toBe("google/gemini-2.5-flash");
+    expect(rows()[0].model).toBe("google/gemini-3.8-flash");
   });
 
   it("logs failed calls with ok: false and re-throws the error", async () => {

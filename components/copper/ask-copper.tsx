@@ -9,6 +9,7 @@ import {
   ArrowRightIcon,
   ArrowUpIcon,
   BrainIcon,
+  ExternalLinkIcon,
   MessageCircleIcon,
   TriangleAlertIcon,
   WrenchIcon,
@@ -603,6 +604,39 @@ function ToolOutput({ name, output }: { name: string; output: any }) {
           </div>
         ))}
       </div>
+    );
+  }
+  if (name === "search_docs" && output?.status) {
+    if (output.status === "unavailable")
+      return <p className="text-xs">{output.message}</p>;
+    return (
+      <ol className="space-y-2 text-xs">
+        {output.results.map((hit: any) => (
+          <li
+            key={`${hit.documentId}-${hit.page}-${hit.rank}`}
+            data-testid="doc-passage"
+            className="bg-card rounded-lg border p-2"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">
+                {hit.rank}. {hit.title}
+              </span>
+              <a
+                href={hit.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary inline-flex shrink-0 items-center gap-1 font-semibold underline-offset-2 hover:underline"
+              >
+                Page {hit.page}
+                <ExternalLinkIcon className="size-3" aria-hidden />
+              </a>
+            </div>
+            <p className="text-muted-foreground mt-1 line-clamp-4">
+              {hit.text}
+            </p>
+          </li>
+        ))}
+      </ol>
     );
   }
   // A tool without its own layout yet: show what came back as plain text.

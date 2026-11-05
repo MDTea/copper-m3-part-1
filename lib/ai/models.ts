@@ -2,15 +2,15 @@
 // Studio key, which is free and needs no credit card.
 export const MODELS = [
   {
-    id: "google/gemini-2.5-flash",
-    label: "Gemini 2.5 Flash (fast, shows its thinking)",
+    id: "google/gemini-3.8-flash",
+    label: "Gemini 3.8 Flash (newest, best answers)",
     // Google's own name for it, used when calling Google.
-    googleId: "gemini-2.5-flash",
+    googleId: "gemini-3.8-flash",
   },
   {
-    id: "google/gemini-3-flash",
-    label: "Gemini 3 Flash (newer, thinks out loud less often)",
-    googleId: "gemini-3-flash-preview",
+    id: "google/gemini-3.1-flash-lite",
+    label: "Gemini 3.1 Flash Lite (fastest and cheapest)",
+    googleId: "gemini-3.1-flash-lite",
   },
 ] as const;
 
@@ -28,11 +28,8 @@ export const EMBEDDING_MODEL = {
   pricePerMillionTokens: 0.15,
 } as const;
 
-/**
- * The model used when a call doesn't name one. 2.5 Flash writes a summary of
- * its thinking for every question, which Ask Copper shows students.
- */
-export const DEFAULT_MODEL: ModelId = "google/gemini-2.5-flash";
+/** The model used when a call doesn't name one. */
+export const DEFAULT_MODEL: ModelId = "google/gemini-3.8-flash";
 
 /** AI_MODEL if it names an approved model, otherwise the default. */
 export function defaultModel(): ModelId {
